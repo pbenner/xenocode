@@ -1,0 +1,5 @@
+// list of examples, represented as a JSON list
+
+[
+{ "file":"ecoli.pl",		  "title":"E. coli genetic code" },
+]

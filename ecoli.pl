@@ -1,0 +1,300 @@
+% -*- mode: prolog; -*-
+
+:- module(ecoli, [create_codebook/2]).
+
+:- use_module(query).
+:- use_module(genetic_code).
+:- use_module(xenoprint).
+:- use_module(xenocode).
+:- use_module(xenocode_io).
+:- use_module(xfreecode).
+:- use_module(pairings).
+:- use_module(pairings_io).
+:- use_module(metric).
+
+% List of sense codons
+%
+% Remove codons from the list to reflect their absence in the 
+% messengers
+% ------------------------------------------------------------------------------
+
+codebook(codons,
+ [ aaa, aac, aag, aau, aca, acc, acg, acu, aga, agc,
+   agg, agu, aua, auc, aug, auu, caa, cac, cag, cau,
+   cca, ccc, ccg, ccu, cga, cgc, cgg, cgu, cua, cuc,
+   cug, cuu, gaa, gac, gag, gau, gca, gcc, gcg, gcu,
+   gga, ggc, ggg, ggu, gua, guc, gug, guu, uac, uau,
+   uca, ucc, ucg, ucu, ugc, ugg, ugu, uua, uuc, uug,
+   uuu]).
+
+% List of stop codons
+% ------------------------------------------------------------------------------
+
+codebook(stop_codons,
+ [ uaa, uga, uag ]).
+
+% List of amino acids
+% ------------------------------------------------------------------------------
+
+codebook(amino_acids,
+ [ ala,
+   arg,
+   asn,
+   asp,
+   cys,
+   gln,
+   glu,
+   gly,
+   his,
+   ile,
+   leu,
+   lys,
+   met,
+   phe,
+   pro,
+ % sec,
+   ser,
+   thr,
+   trp,
+   tyr,
+   val ]).
+			  
+% Base-pairings
+% ------------------------------------------------------------------------------
+
+codebook(watson_crick_pairs,
+ [ (a, u),
+   (u, a),
+   (c, g),
+   (g, c) ]).
+
+codebook(wobble_pairs,
+ [ (u, a),
+   (u, g),
+   (u, i),
+   (c, g),
+   (c, i),
+   (a, u),
+   (a, i),
+   (a, l),
+   (g, c),
+   (g, u) ]).
+
+% tRNA list (anticodons are written in 5'-> 3' direction)
+% ------------------------------------------------------------------------------
+
+codebook(ac_on_trna,
+ [ (ugc, ala_tRNA_T),
+   (ggc, ala_tRNA_X),
+   (acg, arg_tRNA_Q),
+   (ucu, arg_tRNA_U),
+   (ccg, arg_tRNA_X),
+   (guu, asn_tRNA_T),
+   (guc, asp_tRNA_T),
+   (gca, cys_tRNA_T),
+   (uug, gln_tRNA_U),
+   (uuc, glu_tRNA_T),
+   (ucc, gly_tRNA_T),
+   (gcc, gly_tRNA_W),
+   (gug, his_tRNA_R),
+   (gau, ile_tRNA_V),
+   (cau, ile_tRNA_X),
+   (uag, leu_tRNA_U),
+   (uaa, leu_tRNA_X),
+   (gag, leu_tRNA_Z),
+   (uuu, lys_tRNA_Q),
+   (cau, met_tRNA_U),
+   (gaa, phe_tRNA_V),
+   (ggg, pro_tRNA_L),
+   (ugg, pro_tRNA_M),
+   (uga, ser_tRNA_T),
+   (gcu, ser_tRNA_V),
+   (gga, ser_tRNA_W),
+   (ugu, thr_tRNA_U),
+   (ggu, thr_tRNA_V),
+   (cca, trp_tRNA_T),
+   (gua, tyr_tRNA_T),
+   (uac, val_tRNA_T),
+   (gac, val_tRNA_V) ]).
+
+% ------------------------------------------------------------------------------
+
+codebook(aa_is_loaded_by,
+ [ (ala, ala_tRNA_synth),
+   (arg, arg_tRNA_synth),
+   (asn, asn_tRNA_synth),
+   (asp, asp_tRNA_synth),
+   (cys, cys_tRNA_synth),
+   (gln, gln_tRNA_synth),
+   (glu, glu_tRNA_synth),
+   (gly, gly_tRNA_synth),
+   (his, his_tRNA_synth),
+   (ile, ile_tRNA_synth),
+   (leu, leu_tRNA_synth),
+   (lys, lys_tRNA_synth),
+   (met, met_tRNA_synth),
+   (phe, phe_tRNA_synth),
+   (pro, pro_tRNA_synth),
+   (ser, ser_tRNA_synth),
+ % (sec, ser_tRNA_synth),
+   (thr, thr_tRNA_synth),
+   (trp, trp_tRNA_synth),
+   (tyr, tyr_tRNA_synth),
+   (val, val_tRNA_synth) ]).
+
+% Database of anticodon modifications
+% ------------------------------------------------------------------------------
+
+codebook(modifies_ac,
+ [ % tRNA(Ile)-lysidine synthase: c is converted to l (lysidine)
+   (tilS, ile_tRNA_X,            [c,a,u], [l,a,u]),
+   % tRNA adenosine deaminase: a is converted to i (inosine)
+   (trna_adenosine_deaminase, _, [a,A,B], [i,A,B]) ]).
+
+% Associations between synthetases and (tRNA family, anticodon),
+% a wildcard is used if the synthetase does not check the anticodon
+% ------------------------------------------------------------------------------
+codebook(recognizes,
+ [ (ile_tRNA_synth, ile_tRNA, gau),
+   (ile_tRNA_synth, ile_tRNA, lau),
+   (pro_tRNA_synth, pro_tRNA, cgg),
+   (pro_tRNA_synth, pro_tRNA, ggg),
+   (pro_tRNA_synth, pro_tRNA, ugg),
+   (cys_tRNA_synth, cys_tRNA, gca),
+   (leu_tRNA_synth, leu_tRNA, _  ),
+   (gln_tRNA_synth, gln_tRNA, cug),
+   (gln_tRNA_synth, gln_tRNA, uug),
+   (ser_tRNA_synth, ser_tRNA, _  ),
+   (asn_tRNA_synth, asn_tRNA, guu),
+   (tyr_tRNA_synth, tyr_tRNA, _  ),
+   (phe_tRNA_synth, phe_tRNA, gaa),
+   (thr_tRNA_synth, thr_tRNA, _  ),
+   (asp_tRNA_synth, asp_tRNA, guc),
+   (arg_tRNA_synth, arg_tRNA, icg),
+   (arg_tRNA_synth, arg_tRNA, ccg),
+   (arg_tRNA_synth, arg_tRNA, ccu),
+   (arg_tRNA_synth, arg_tRNA, ucu),
+   (met_tRNA_synth, met_tRNA, cau),
+   (glu_tRNA_synth, glu_tRNA, uuc),
+   (his_tRNA_synth, his_tRNA, gug),
+   (ala_tRNA_synth, ala_tRNA, _  ),
+   (lys_tRNA_synth, lys_tRNA, uuu),
+   (trp_tRNA_synth, trp_tRNA, cca),
+   (gly_tRNA_synth, gly_tRNA, ccc),
+   (gly_tRNA_synth, gly_tRNA, gcc),
+   (gly_tRNA_synth, gly_tRNA, ucc),
+   (val_tRNA_synth, val_tRNA, gac),
+   (val_tRNA_synth, val_tRNA, uac)]).
+
+% Examples
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Print the genetic code generated by the codebook
+% ------------------------------------------------------------------------------
+
+print_code :-
+	create_codebook(ecoli, BOOK),
+	xenoprint(string(S), genetic_code, book(BOOK)),
+	format("~w", [S]).
+
+/** <examples>
+  
+  ?- print_code.
+
+*/
+
+% Query (codon, anticodon) pairings; use anticodons after possible
+% modifications
+% ------------------------------------------------------------------------------
+
+pairings_with_modifications :-
+	create_codebook(ecoli, BOOK),
+	query([acm, c], [ACM, C], BOOK),
+	format("(~w, ~w)\n", [C, ACM]).
+
+/** <examples>
+  
+  ?- pairings_with_modifications.
+
+*/
+
+% Generate new codes by mutating a single tRNA
+% ------------------------------------------------------------------------------
+
+generate_recipe(OPTIONS) :-
+	create_codebook(ecoli, BOOK),
+	recode(1, BOOK, _, [[AC, AC_OLD, TRNA, TRNA_OLD, AA, AA_OLD]], OPTIONS),
+	setof(C, query([aa, ac, c, trna], [AA_OLD, AC, C, TRNA_OLD], BOOK),
+	      C_SET),
+	format("\nLet ~w code for ~w instead of ~w:\n", [C_SET, AA, AA_OLD]),
+	format(" -> remove ~w\n", [TRNA_OLD]),
+	format(" -> clone  ~w and mutate its anticodon from ~w to ~w", [TRNA, AC_OLD, AC]).
+generate_recipe :-
+	generate_recipe([]).
+
+generate_code(OPTIONS) :-
+	create_codebook(ecoli, BOOK1),
+	generate_codebook(1, BOOK1, BOOK1, BOOK2, OPTIONS),
+	d(book(BOOK1), book(BOOK2), D),
+	xenoprint(string(S), genetic_code, book(BOOK2)),
+	format("~w\n", [S]),
+	format("Code has distance ~w to the initial genetic code.\n",
+	       [D]).
+
+generate_code :-
+	generate_code([]).
+
+/** <examples>
+
+  ?- generate_recipe.
+  ?- generate_code.
+  ?- generate_code([deactivate(ile_tRNA_synth)]).
+*/
+
+% Count the number of possible codes that can be reached in one step
+% ------------------------------------------------------------------------------
+
+count_codes(N) :-
+	create_codebook(ecoli, BOOK),
+	setof(CODE, generate_code(N, BOOK, BOOK, CODE), CODE_LIST),
+	length(CODE_LIST, L),
+	format("Number of codes: ~w\n", [L]).
+
+/** <examples>
+
+  ?- count_codes(1).
+
+*/
+
+% Generate possible unambiguous (codon, anticodon)-pairs regardless of whether
+% a suitible tRNA exists; print anticodons before modifications
+% ------------------------------------------------------------------------------
+
+generate_pairings :-
+	create_codebook(ecoli, BOOK),
+	pairings(PAIRS, BOOK),
+	xenoprint(string(S), pairings, PAIRS),
+	format("~w", [S]).
+
+/** <examples>
+
+  ?- generate_pairings.
+
+*/
+
+% Generate pairings with codons that do not contain a certain nucleotide
+% ------------------------------------------------------------------------------
+
+generate_xfree_pairings(X) :-
+	nonvar(X),
+	create_codebook(ecoli, BOOK1),
+	filter_codon_list(X, BOOK1, BOOK2),
+	pairings(PAIRS, BOOK2),
+	xenoprint(string(S), pairings, PAIRS),
+	format("~w", [S]).
+
+/** <examples>
+
+  ?- generate_xfree_pairings(c).
+
+*/
